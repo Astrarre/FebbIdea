@@ -15,7 +15,8 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <gotoDeclarationHandler implementation="TestHandler"/>
+        <gotoDeclarationHandler implementation="FebbApiMethodRedirector"/>
+        <superMethodsSearch implementation="FebbApiBaseclassRedirector"/>
         <!-- Add your extensions here -->
     </extensions>
 

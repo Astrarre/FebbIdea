@@ -41,11 +41,12 @@ private fun PsiMethod.isMatchingMethod(apiMethod: PsiMethod): Boolean {
 
 private fun PsiClassReferenceType.rawTypeString() = rawType().canonicalText
 private fun PsiType.matchesApiType(apiType: PsiType): Boolean {
+    if (this == apiType) return true
     val mcType = this
     if (mcType is PsiClassReferenceType) {
         if (apiType !is PsiClassReferenceType) return false
-        if (mcType.rawTypeString() != apiType.rawTypeString().toMcClassName()) return false
-        return true
+        return mcType.rawTypeString() == apiType.rawTypeString().toMcClassName()
+//        return true
     } else {
         return false
     }
@@ -56,28 +57,28 @@ else removePrefix("set")
 
 private fun String.decapitalizeFirstLetter() = this[0].toLowerCase() + substring(1)
 
+ fun PsiMethod.isApiMethod() = containingClass?.qualifiedName?.isApiClassName() == true
+
 //TODO: technically  getters/setters get a _field suffix when conflicting,
 // and methods get _method when conflicting with a create() factory.
 
-private fun PsiMethod.getMcEquivalent(): PsiElement? {
+fun PsiMethod.getMcEquivalent(): PsiElement? {
     val classIn = containingClass ?: return null
     val className = classIn.qualifiedName ?: return null
-    if (className.isApiClassName()) {
-        val mcClassName = className.apiToMcClassName()
-        val mcClass = JavaPsiFacade.getInstance(project)
-            .findClass(mcClassName, GlobalSearchScope.everythingScope(project))
-            ?: error("Could not find mc class '$mcClassName' corresponding to api class '$className'")
-        val methodName = if (name == "create") classIn.name?.removeApiPrefix() ?: return null else name
-        val methods = mcClass.findMethodsByName(methodName, false)
+    if (!isApiMethod()) return null
+    val mcClassName = className.apiToMcClassName()
+    val mcClass = JavaPsiFacade.getInstance(project)
+        .findClass(mcClassName, GlobalSearchScope.everythingScope(project))
+        ?: error("Could not find mc class '$mcClassName' corresponding to api class '$className'")
+    val methodName = if (name == "create") classIn.name?.removeApiPrefix() ?: return null else name
+    val methods = mcClass.findMethodsByName(methodName, false)
 
-        if (methods.isNotEmpty()) {
-            return getMcMethod(methods, mcClassName)
-        } else {
-            return getMcField(mcClass)
-        }
+    if (methods.isNotEmpty()) {
+        return getMcMethod(methods, mcClassName)
     } else {
-        return null
+        return getMcField(mcClass)
     }
+
 }
 
 private fun PsiMethod.getMcField(mcClass: PsiClass): PsiField? {
@@ -108,7 +109,7 @@ private fun PsiMethod.getMcMethod(
     return correctMethod.single()
 }
 
-class TestHandler : GotoDeclarationHandlerBase() {
+class FebbApiMethodRedirector : GotoDeclarationHandlerBase() {
     override fun getGotoDeclarationTarget(sourceElement: PsiElement?, editor: Editor): PsiElement? {
         if (sourceElement is PsiIdentifier) {
             val definition = sourceElement.getDefinition() ?: return null
@@ -120,3 +121,4 @@ class TestHandler : GotoDeclarationHandlerBase() {
     }
 
 }
+
